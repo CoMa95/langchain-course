@@ -47,7 +47,7 @@ def apply_discount(price: float, discount_tier: str) -> float:
 def run_agent(question: str):
     # declare which tools will the LLM have access to
     tools = [get_product_price, apply_discount]
-    tools_dict = {t.name: t for t in tools} # dict with tool name and actual function
+    tools_dict = {t.name: t for t in tools} # dict with tool name (.name is a Langchain attribute for @tool decorated functions) and actual function
     # initialise model
     llm = init_chat_model(f"ollama:{MODEL}", temperature=0) # if langchain-ollama is installed in the environment, then there is no need to import it directly
     # llm = init_chat_model(f"openai:gpt5"), temperature=0) # assuming langchain-openai is in env, it is very easy to switch models
