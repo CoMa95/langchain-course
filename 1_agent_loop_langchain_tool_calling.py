@@ -10,6 +10,14 @@ from langsmith import traceable
 MAX_ITERATIONS = 10
 MODEL = "qwen3.5:2b"
 
+# This is Abstraction Layer 1
+# This means that the ReAct architecture (i.e. the while loop) is 
+# recreated manually, using init_chat_model and a FOR loop, but there
+# is use of LangChain objects/functions such as: @tool (to provide function
+# metadata), .bind_tools() to directly link tools to LLM, init_chat_model to invoke
+# model, and library-loaded message types (e.g. Human or System) to more
+# easily manage communication with LLM.
+
 
 # --- Tools (LangChain @tool decorator) ---
 
@@ -37,16 +45,20 @@ def apply_discount(price: float, discount_tier: str) -> float:
 
 @traceable(name="LangChain Agent Loop")
 def run_agent(question: str):
+    # declare which tools will the LLM have access to
     tools = [get_product_price, apply_discount]
-    tools_dict = {t.name: t for t in tools}
-
+    tools_dict = {t.name: t for t in tools} # dict with tool name and actual function
+    # initialise model
     llm = init_chat_model(f"ollama:{MODEL}", temperature=0) # if langchain-ollama is installed in the environment, then there is no need to import it directly
     # llm = init_chat_model(f"openai:gpt5"), temperature=0) # assuming langchain-openai is in env, it is very easy to switch models
+    # bind tool with the LangChain function .bind_tools()
     llm_with_tools = llm.bind_tools(tools)
 
     print(f"Question: {question}")
     print("=" * 60)
 
+    ### REACT DIAGRAM ELEMENT: the Query
+    # write input message structure (System + User prompt)
     messages = [
         SystemMessage(
             content=(
@@ -70,43 +82,57 @@ def run_agent(question: str):
         ),
         HumanMessage(content=question),
     ]
+    ### REACT DIAGRAM ELEMENT: the Query
 
+    ### REACT DIAGRAM ELEMENT: the Agent Loop
     for iteration in range(1, MAX_ITERATIONS + 1):
         print(f"\n--- Iteration {iteration} ---")
 
+        ### REACT DIAGRAM ELEMENT: the Thought
+        # obtain AIMessage object (model's response to promt) by invoking its tool-bound version, with the input messages
+        # this step DOES NOT involve tool use, only tool choosing if necessary
         ai_message = llm_with_tools.invoke(messages)
+        ### REACT DIAGRAM ELEMENT: the Thought
 
+        ### REACT DIAGRAM ELEMENT: the Action
+        # check if the LLM used any tools (long explanation: .invoke creates an AIMessage object which also contain info about any tools usage, which can then by summoned using .tool_calls)
         tool_calls = ai_message.tool_calls
-
-        # If no tool calls, this is the final answer
+        # If no tool calls, this is the final answer since no tools = LLM has all it needs for final answer
         if not tool_calls:
+            ### REACT DIAGRAM ELEMENT: the Answer
             print(f"\nFinal Answer: {ai_message.content}")
             return ai_message.content
+            ### REACT DIAGRAM ELEMENT: the Answer
+        ### REACT DIAGRAM ELEMENT: the Action
 
-        # Process only the FIRST tool call — force one tool per iteration
+        ### REACT DIAGRAM ELEMENT: the Tool
+        # LLM might consider multiple tools, but we'll process only the FIRST tool call — force one tool per iteration
         tool_call = tool_calls[0]
         tool_name = tool_call.get("name")
         tool_args = tool_call.get("args", {})
         tool_call_id = tool_call.get("id")
-
         print(f"  [Tool Selected] {tool_name} with args: {tool_args}")
-
+        # check if name of tool chosen by LLM actually exists
         tool_to_use = tools_dict.get(tool_name)
         if tool_to_use is None:
             raise ValueError(f"Tool '{tool_name}' not found")
 
-        observation = tool_to_use.invoke(tool_args)
+        # invoke the tool runnable
+        observation = tool_to_use.invoke(tool_args) # tool_to_use is the actual function, invoked the args in brackets)
+        ### REACT DIAGRAM ELEMENT: the Tool
 
+        ### REACT DIAGRAM ELEMENT: the Observation
         print(f"  [Tool Result] {observation}")
-
         messages.append(ai_message)
         messages.append(
             ToolMessage(content=str(observation), tool_call_id=tool_call_id)
         ) # this is needed to ensure that the llm can match each tool result
         # to the specific tool it called
+        ### REACT DIAGRAM ELEMENT: the Observation
 
     print("ERROR: Max iterations reached without a final answer")
     return None
+    ### REACT DIAGRAM ELEMENT: the Agent Loop
 
 
 if __name__ == "__main__":
