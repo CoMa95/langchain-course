@@ -10,7 +10,7 @@ from langsmith import traceable
 MAX_ITERATIONS = 10
 MODEL = "qwen3.5:2b"
 
-# This is Abstraction Layer 1
+# This is Abstraction Layer 0 - LANGCHAIN OBJECTS
 # This means that the ReAct architecture (i.e. the while loop) is 
 # recreated manually, using init_chat_model and a FOR loop, but there
 # is use of LangChain objects/functions such as: @tool (to provide function

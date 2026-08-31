@@ -8,7 +8,7 @@ from langsmith import traceable
 MAX_ITERATIONS = 5
 MODEL = "qwen3.5:2b"
 
-# This is Abstraction Layer 2
+# This is Abstraction Layer 1 - FUNCTION CALLING
 # NO LangChain objects allowed
 # will use tools from the OLLAMA library instead
 
@@ -113,6 +113,7 @@ def run_agent(question: str):
 
     ### REACT DIAGRAM ELEMENT: the Query
     # without LangChain there are no natively defined message types, they need explicit defining
+    # the following structure is OLLAMA specific, other providers' may vary
     messages = [
         {
             'role': 'system',
